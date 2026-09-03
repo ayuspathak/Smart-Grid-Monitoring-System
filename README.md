@@ -1,8 +1,6 @@
 # Smart Grid Monitoring System
 
-A B.Tech Electrical Engineering project by **Ayush Pathak** for exploring a small simulated power network through monitoring, fault studies and basic machine-learning analysis.
-
-The project is built as a compact local lab setup. Instead of depending on live utility data, it creates sample three-phase readings, stores them in SQLite, and then uses those readings for visualisation and analysis.
+A B.Tech Electrical Engineering project by **Me** for exploring a small simulated power network through monitoring, fault studies and basic machine-learning analysis. This project is built as a compact local lab setup. Instead of depending on live utility data, it creates sample three-phase readings, stores them in SQLite, and then uses those readings for visualisation and analysis.
 
 ## What I built
 
@@ -15,19 +13,6 @@ The project is built as a compact local lab setup. Instead of depending on live 
 - Interactive Streamlit dashboard
 - Local telemetry simulator for testing without hardware
 
-## Files
-
-```text
-Smart-Grid-Monitoring-System/
-├── app.py
-├── database.py
-├── ai_analytics.py
-├── fault_analysis.py
-├── esp32_simulator.py
-├── run_system.py
-├── requirements.txt
-└── PROJECT_NOTES.md
-```
 
 ## Run
 
@@ -52,8 +37,3 @@ The data flow is deliberately simple:
 
 The fault calculation is an educational approximation and the telemetry is simulated. The numbers should not be used for real protection settings or utility operation.
 
-## Author
-
-**Ayush Pathak**  
-4th Year B.Tech Electrical Engineering  
-BIET Jhansi
