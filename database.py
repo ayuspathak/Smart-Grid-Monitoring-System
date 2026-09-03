@@ -1,132 +1,141 @@
-"""SQLite helpers for telemetry and analysis history."""
+"""Local SQLite storage for the Ayush smart-grid project."""
+
+from __future__ import annotations
 
 import os
 import sqlite3
 from datetime import datetime, timedelta
+
 import numpy as np
 import pandas as pd
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "smart_grid.db")
+DB_PATH = os.path.join(os.path.dirname(__file__), "ayush_grid.db")
 
 
-def get_connection():
+def connection() -> sqlite3.Connection:
     return sqlite3.connect(DB_PATH, check_same_thread=False)
 
 
-def init_db():
-    conn = get_connection()
-    cur = conn.cursor()
+def initialize() -> None:
+    con = connection()
+    cur = con.cursor()
     cur.execute("""CREATE TABLE IF NOT EXISTS telemetry (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         timestamp TEXT NOT NULL,
         node_id TEXT NOT NULL,
-        voltage_a REAL, voltage_b REAL, voltage_c REAL,
-        current_a REAL, current_b REAL, current_c REAL,
-        active_power REAL, power_factor REAL, frequency REAL,
-        status TEXT
+        voltage_a REAL NOT NULL,
+        voltage_b REAL NOT NULL,
+        voltage_c REAL NOT NULL,
+        current_a REAL NOT NULL,
+        current_b REAL NOT NULL,
+        current_c REAL NOT NULL,
+        active_power REAL NOT NULL,
+        power_factor REAL NOT NULL,
+        frequency REAL NOT NULL,
+        status TEXT NOT NULL
     )""")
-    cur.execute("""CREATE TABLE IF NOT EXISTS fault_events (
+    cur.execute("""CREATE TABLE IF NOT EXISTS feeder_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT NOT NULL,
+        load_factor REAL,
+        pv_mw REAL,
+        min_voltage_pu REAL,
+        peak_loading_pct REAL,
+        losses_kw REAL
+    )""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS fault_cases (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         timestamp TEXT NOT NULL,
         fault_type TEXT,
-        location TEXT,
-        fault_current_ka REAL,
-        trip_time_ms REAL,
+        feeder TEXT,
+        current_ka REAL,
+        clearing_ms REAL,
         severity TEXT
     )""")
-    cur.execute("""CREATE TABLE IF NOT EXISTS powerflow_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT NOT NULL,
-        load_scale REAL,
-        solar_mw REAL,
-        min_voltage_pu REAL,
-        max_loading_pct REAL,
-        losses_kw REAL
-    )""")
-    conn.commit()
-
+    con.commit()
     cur.execute("SELECT COUNT(*) FROM telemetry")
-    if cur.fetchone()[0] < 60:
-        seed_demo_data(conn)
-    conn.close()
+    empty = cur.fetchone()[0] == 0
+    con.close()
+    if empty:
+        add_sample_batch(96)
 
 
-def seed_demo_data(conn):
+def add_sample_batch(count: int = 24) -> None:
+    rng = np.random.default_rng()
     now = datetime.now()
-    rng = np.random.default_rng(42)
     rows = []
-    for step in range(144):
-        ts = now - timedelta(minutes=step * 10)
-        hour = ts.hour + ts.minute / 60
-        shape = 0.55 + 0.30 * np.exp(-((hour - 18) / 4) ** 2) + 0.08 * np.sin(hour / 2)
-        for node in ("AYUSH_NODE_01", "FEEDER_A", "FEEDER_B"):
-            base_v = 230.0 if node != "AYUSH_NODE_01" else 229.5
-            va, vb, vc = base_v + rng.normal(0, 1.2, 3)
-            ia, ib, ic = 8 + 22 * shape + rng.normal(0, 0.7, 3)
-            pf = float(np.clip(0.94 + rng.normal(0, 0.018), 0.82, 0.99))
-            power = float((va * ia + vb * ib + vc * ic) * pf / 1000)
-            freq = float(50 + rng.normal(0, 0.035))
+    for i in range(count):
+        stamp = now - timedelta(minutes=(count - 1 - i) * 10)
+        t = stamp.hour + stamp.minute / 60.0
+        demand_shape = 0.78 + 0.18 * np.exp(-((t - 18.5) / 3.8) ** 2) + 0.03 * np.sin(t)
+        for node, offset in (("AYUSH_NODE_01", 0.0), ("FEEDER_A", -0.8), ("FEEDER_B", 0.6)):
+            base = 230.0 + offset
+            spread = rng.normal(0, 0.9, 3)
+            va, vb, vc = base + spread
+            current = 9.0 + 18.0 * demand_shape
+            ia, ib, ic = current + rng.normal(0, 0.45, 3)
+            pf = float(np.clip(0.94 + rng.normal(0, 0.012), 0.86, 0.99))
+            power = (va * ia + vb * ib + vc * ic) * pf / 1000.0
+            freq = float(50.0 + rng.normal(0, 0.025))
             status = "NORMAL"
-            if step % 47 == 0:
-                va *= 0.94
+            if i % 31 == 0:
+                vb *= 0.965
                 status = "CHECK"
-            rows.append((ts.strftime("%Y-%m-%d %H:%M:%S"), node, va, vb, vc,
+            rows.append((stamp.strftime("%Y-%m-%d %H:%M:%S"), node, va, vb, vc,
                          ia, ib, ic, power, pf, freq, status))
-    conn.executemany("""INSERT INTO telemetry
+    con = connection()
+    con.executemany("""INSERT INTO telemetry
         (timestamp,node_id,voltage_a,voltage_b,voltage_c,current_a,current_b,current_c,
          active_power,power_factor,frequency,status)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", rows)
-    conn.commit()
+    con.commit(); con.close()
 
 
-def log_telemetry(data):
-    conn = get_connection()
-    conn.execute("""INSERT INTO telemetry
+def log_telemetry(packet: dict) -> None:
+    con = connection()
+    con.execute("""INSERT INTO telemetry
         (timestamp,node_id,voltage_a,voltage_b,voltage_c,current_a,current_b,current_c,
          active_power,power_factor,frequency,status)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", (
-        data.get("timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
-        data.get("node_id", "AYUSH_NODE_01"), data.get("voltage_a", 230.0),
-        data.get("voltage_b", 230.0), data.get("voltage_c", 230.0),
-        data.get("current_a", 10.0), data.get("current_b", 10.0), data.get("current_c", 10.0),
-        data.get("active_power", 6.5), data.get("power_factor", 0.95),
-        data.get("frequency", 50.0), data.get("status", "NORMAL")))
-    conn.commit(); conn.close()
+        packet.get("timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+        packet.get("node_id", "AYUSH_NODE_01"), packet.get("voltage_a", 230.0),
+        packet.get("voltage_b", 230.0), packet.get("voltage_c", 230.0),
+        packet.get("current_a", 10.0), packet.get("current_b", 10.0), packet.get("current_c", 10.0),
+        packet.get("active_power", 6.5), packet.get("power_factor", 0.95),
+        packet.get("frequency", 50.0), packet.get("status", "NORMAL")))
+    con.commit(); con.close()
 
 
-def get_recent_telemetry(limit=100, node_id=None):
-    conn = get_connection()
-    if node_id:
-        df = pd.read_sql_query("SELECT * FROM telemetry WHERE node_id=? ORDER BY id DESC LIMIT ?", conn, params=(node_id, limit))
+def recent_telemetry(limit: int = 100, node: str | None = None) -> pd.DataFrame:
+    con = connection()
+    if node:
+        df = pd.read_sql_query("SELECT * FROM telemetry WHERE node_id=? ORDER BY id DESC LIMIT ?", con, params=(node, limit))
     else:
-        df = pd.read_sql_query("SELECT * FROM telemetry ORDER BY id DESC LIMIT ?", conn, params=(limit,))
-    conn.close()
+        df = pd.read_sql_query("SELECT * FROM telemetry ORDER BY id DESC LIMIT ?", con, params=(limit,))
+    con.close()
     return df
 
 
-def log_fault_event(fault_type, location, current_ka, trip_ms, severity):
-    conn = get_connection()
-    conn.execute("INSERT INTO fault_events(timestamp,fault_type,location,fault_current_ka,trip_time_ms,severity) VALUES(?,?,?,?,?,?)",
-                 (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), fault_type, location, current_ka, trip_ms, severity))
-    conn.commit(); conn.close()
+def save_feeder_result(result: dict, load_factor: float, pv_mw: float) -> None:
+    con = connection()
+    con.execute("""INSERT INTO feeder_runs(timestamp,load_factor,pv_mw,min_voltage_pu,peak_loading_pct,losses_kw)
+                   VALUES(?,?,?,?,?,?)""", (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), load_factor, pv_mw,
+                   result["minimum_voltage_pu"], result["peak_loading_pct"], result["losses_kw"]))
+    con.commit(); con.close()
 
 
-def get_all_faults():
-    conn = get_connection(); df = pd.read_sql_query("SELECT * FROM fault_events ORDER BY id DESC", conn); conn.close(); return df
+def save_fault_result(result: dict) -> None:
+    con = connection()
+    con.execute("""INSERT INTO fault_cases(timestamp,fault_type,feeder,current_ka,clearing_ms,severity)
+                   VALUES(?,?,?,?,?,?)""", (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), result["fault_type"],
+                   result["feeder"], result["fault_current_ka"], result["clearing_ms"], result["severity"]))
+    con.commit(); con.close()
 
 
-def log_powerflow(result, load_scale, solar_mw):
-    conn = get_connection()
-    conn.execute("INSERT INTO powerflow_history(timestamp,load_scale,solar_mw,min_voltage_pu,max_loading_pct,losses_kw) VALUES(?,?,?,?,?,?)",
-                 (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), load_scale, solar_mw,
-                  result["min_voltage_pu"], result["max_line_loading_pct"], result["total_loss_kw"]))
-    conn.commit(); conn.close()
-
-
-def get_powerflow_history(limit=50):
-    conn=get_connection(); df=pd.read_sql_query("SELECT * FROM powerflow_history ORDER BY id DESC LIMIT ?", conn, params=(limit,)); conn.close(); return df
+def recent_faults(limit: int = 20) -> pd.DataFrame:
+    con = connection(); df = pd.read_sql_query("SELECT * FROM fault_cases ORDER BY id DESC LIMIT ?", con, params=(limit,)); con.close(); return df
 
 
 if __name__ == "__main__":
-    init_db()
-    print("Database ready:", DB_PATH)
+    initialize()
+    print(f"Database ready: {DB_PATH}")
