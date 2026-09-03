@@ -1,68 +1,64 @@
-"""Small ML helpers for anomaly flags and short load forecasts."""
+"""Analytics helpers for the smart-grid dashboard."""
+
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest, RandomForestRegressor
 
 
-class SmartGridAI:
-    def __init__(self):
-        self.anomaly_model = None
-        self.load_model = None
-
-    def detect_anomalies(self, telemetry: pd.DataFrame) -> pd.DataFrame:
-        if telemetry.empty:
-            return telemetry.copy()
-        features = [c for c in ["voltage_a", "voltage_b", "voltage_c", "current_a", "current_b", "current_c", "power_factor"] if c in telemetry.columns]
-        x = telemetry[features].fillna(0)
-        self.anomaly_model = IsolationForest(contamination=0.04, random_state=7)
-        labels = self.anomaly_model.fit_predict(x)
-        result = telemetry.copy()
-        result["anomaly"] = labels == -1
-        result["anomaly_score"] = self.anomaly_model.decision_function(x).round(4)
-        return result
-
-    def forecast_next_day(self, telemetry: pd.DataFrame, periods=24) -> pd.DataFrame:
-        if telemetry.empty or "active_power" not in telemetry.columns:
-            return pd.DataFrame()
-        data = telemetry.copy()
-        data["timestamp"] = pd.to_datetime(data["timestamp"])
-        data = data.sort_values("timestamp")
-        data["hour"] = data["timestamp"].dt.hour
-        data["dow"] = data["timestamp"].dt.dayofweek
-        data["load_lag"] = data["active_power"].shift(1)
-        data = data.dropna()
-        if len(data) < 20:
-            return pd.DataFrame()
-
-        features = ["hour", "dow", "load_lag"]
-        self.load_model = RandomForestRegressor(n_estimators=80, random_state=7, min_samples_leaf=2)
-        self.load_model.fit(data[features], data["active_power"])
-        last = data.iloc[-1]["timestamp"]
-        rows = []
-        lag = float(data.iloc[-1]["active_power"])
-        for step in range(1, periods + 1):
-            stamp = last + pd.Timedelta(hours=step)
-            pred = float(self.load_model.predict(pd.DataFrame([{
-                "hour": stamp.hour, "dow": stamp.dayofweek, "load_lag": lag
-            }]))[0])
-            rows.append((stamp, pred, pred * 0.9, pred * 1.1))
-            lag = pred
-        return pd.DataFrame(rows, columns=["Time", "Forecast (kW)", "Lower (kW)", "Upper (kW)"])
-
-    def risk_summary(self, telemetry: pd.DataFrame) -> dict:
-        if telemetry.empty:
-            return {"risk": "No data", "anomalies": 0}
-        checked = self.detect_anomalies(telemetry)
-        anomalies = int(checked["anomaly"].sum())
-        if anomalies == 0:
-            risk = "LOW"
-        elif anomalies <= 3:
-            risk = "MEDIUM"
-        else:
-            risk = "HIGH"
-        return {"risk": risk, "anomalies": anomalies}
+def _features(df: pd.DataFrame) -> pd.DataFrame:
+    cols = ["voltage_a", "voltage_b", "voltage_c", "current_a", "current_b", "current_c", "power_factor", "frequency"]
+    return df[cols].astype(float).fillna(0)
 
 
-if __name__ == "__main__":
-    print("AI module ready")
+def detect(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df.copy()
+    result = df.copy()
+    x = _features(result)
+    model = IsolationForest(n_estimators=120, contamination=0.06, random_state=24)
+    result["anomaly"] = model.fit_predict(x) == -1
+    result["anomaly_score"] = model.decision_function(x).round(4)
+    result["health_score"] = np.clip(100 + result["anomaly_score"] * 55, 0, 100).round(1)
+    return result
+
+
+def summary(flagged: pd.DataFrame) -> dict:
+    if flagged.empty:
+        return {"level": "NO DATA", "flags": 0}
+    count = int(flagged["anomaly"].sum())
+    ratio = count / max(len(flagged), 1)
+    if ratio < 0.03:
+        level = "NORMAL"
+    elif ratio < 0.08:
+        level = "WATCH"
+    else:
+        level = "ATTENTION"
+    return {"level": level, "flags": count}
+
+
+def forecast(df: pd.DataFrame, hours: int = 12) -> pd.DataFrame:
+    if df.empty or "active_power" not in df.columns:
+        return pd.DataFrame()
+    data = df.copy()
+    data["timestamp"] = pd.to_datetime(data["timestamp"])
+    data = data.sort_values("timestamp")
+    hourly = data.set_index("timestamp")["active_power"].resample("1h").mean().dropna().reset_index()
+    if len(hourly) < 12:
+        return pd.DataFrame()
+    hourly["hour"] = hourly["timestamp"].dt.hour
+    hourly["day"] = hourly["timestamp"].dt.dayofweek
+    hourly["lag1"] = hourly["active_power"].shift(1)
+    hourly = hourly.dropna()
+    model = RandomForestRegressor(n_estimators=100, min_samples_leaf=2, random_state=24)
+    model.fit(hourly[["hour", "day", "lag1"]], hourly["active_power"])
+    last_time = hourly.iloc[-1]["timestamp"]
+    lag = float(hourly.iloc[-1]["active_power"])
+    rows = []
+    for step in range(1, hours + 1):
+        stamp = last_time + pd.Timedelta(hours=step)
+        pred = float(model.predict(pd.DataFrame([[stamp.hour, stamp.dayofweek, lag]], columns=["hour","day","lag1"]))[0])
+        rows.append((stamp, pred))
+        lag = pred
+    return pd.DataFrame(rows, columns=["time", "forecast_kw"])
