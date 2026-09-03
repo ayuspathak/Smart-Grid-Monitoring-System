@@ -10,14 +10,14 @@ try:
 except ImportError:
     feeder_model = None
 
-st.set_page_config(page_title="Ayush Smart Grid", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Smart Grid", page_icon="⚡", layout="wide")
 st.title("⚡ Smart Grid Monitoring System")
 st.caption("Ayush Pathak · B.Tech Electrical Engineering · BIET Jhansi")
 storage.initialize()
 
 with st.sidebar:
     page = st.radio("Section", ["Dashboard", "Fault Study", "Analytics"])
-    node = st.selectbox("Telemetry node", ["AYUSH_NODE_01", "FEEDER_A", "FEEDER_B"])
+    node = st.selectbox("Telemetry node", ["NODE_01", "FEEDER_A", "FEEDER_B"])
     if st.button("Generate readings"):
         storage.add_sample_batch(12)
         st.rerun()
