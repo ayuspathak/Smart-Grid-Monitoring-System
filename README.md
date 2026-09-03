@@ -1,64 +1,59 @@
 # Smart Grid Monitoring System
 
-A B.Tech Electrical Engineering project for looking at a small simulated distribution network from three angles: **measurement**, **electrical behaviour**, and **data analytics**.
+A B.Tech Electrical Engineering project by **Ayush Pathak** for exploring a small simulated power network through monitoring, fault studies and basic machine-learning analysis.
 
-I built the current version around a simple workflow that is easy to run and explain:
+The project is built as a compact local lab setup. Instead of depending on live utility data, it creates sample three-phase readings, stores them in SQLite, and then uses those readings for visualisation and analysis.
 
-1. generate sample three-phase telemetry
-2. store the readings locally
-3. inspect feeder voltage/loading under different operating conditions
-4. run a simple fault what-if calculation
-5. flag unusual measurements with machine learning
-6. make a short load forecast from the stored history
+## What I built
 
-## Project structure
+- Three-phase voltage and current monitoring
+- Power, power-factor and frequency tracking
+- Local SQLite telemetry history
+- A simplified feeder fault study
+- Isolation Forest based anomaly detection
+- Short-term load forecasting with Random Forest
+- Interactive Streamlit dashboard
+- Local telemetry simulator for testing without hardware
+
+## Files
 
 ```text
 Smart-Grid-Monitoring-System/
-├── app.py                 # Streamlit dashboard
-├── database.py            # SQLite storage and sample data
-├── feeder_model.py        # Feeder calculations and plots
-├── fault_study.py         # Simplified fault study
-├── analytics_engine.py    # anomaly detection + forecasting
-├── telemetry_simulator.py # local three-phase data generator
-├── run_system.py          # launcher
+├── app.py
+├── database.py
+├── ai_analytics.py
+├── fault_analysis.py
+├── esp32_simulator.py
+├── run_system.py
 ├── requirements.txt
 └── PROJECT_NOTES.md
 ```
 
-## Run it
+## Run
 
 ```bash
 pip install -r requirements.txt
 python run_system.py
 ```
 
-A browser window can then be opened at the Streamlit address printed in the terminal.
-
-You can also run the dashboard directly:
+Or start the dashboard directly:
 
 ```bash
 streamlit run app.py
 ```
 
-## What is simulated
+Use **Generate readings** in the sidebar to create another batch of sample data.
 
-The telemetry and network values are generated for learning and software testing. They are not measurements from a real utility network, and the simplified fault study is not intended for relay settings or field design.
+## Project idea
 
-## Main ideas demonstrated
+The data flow is deliberately simple:
 
-- Three-phase electrical telemetry handling
-- Voltage imbalance calculation
-- Feeder operating-point study
-- Simple voltage-drop and loading analysis
-- Fault current estimation using a simplified impedance model
-- Isolation Forest anomaly detection
-- Short-horizon load forecasting
-- SQLite-based local history
-- Interactive Streamlit visualisation
+**Telemetry → SQLite → Dashboard → Fault Study / ML Analysis**
+
+The fault calculation is an educational approximation and the telemetry is simulated. The numbers should not be used for real protection settings or utility operation.
 
 ## Author
 
 **Ayush Pathak**  
-B.Tech Electrical Engineering, 4th Year  
+4th Year B.Tech Electrical Engineering  
 BIET Jhansi
