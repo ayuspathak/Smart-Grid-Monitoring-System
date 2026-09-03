@@ -1,4 +1,4 @@
-"""Local SQLite storage for the Ayush smart-grid project."""
+"""Local SQLite storage for the Smart-grid project."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "ayush_grid.db")
+DB_PATH = os.path.join(os.path.dirname(__file__), "smart_grid.db")
 
 
 def connection() -> sqlite3.Connection:
@@ -68,7 +68,7 @@ def add_sample_batch(count: int = 24) -> None:
         stamp = now - timedelta(minutes=(count - 1 - i) * 10)
         t = stamp.hour + stamp.minute / 60.0
         demand_shape = 0.78 + 0.18 * np.exp(-((t - 18.5) / 3.8) ** 2) + 0.03 * np.sin(t)
-        for node, offset in (("AYUSH_NODE_01", 0.0), ("FEEDER_A", -0.8), ("FEEDER_B", 0.6)):
+        for node, offset in (("NODE_01", 0.0), ("FEEDER_A", -0.8), ("FEEDER_B", 0.6)):
             base = 230.0 + offset
             spread = rng.normal(0, 0.9, 3)
             va, vb, vc = base + spread
@@ -98,7 +98,7 @@ def log_telemetry(packet: dict) -> None:
          active_power,power_factor,frequency,status)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""", (
         packet.get("timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
-        packet.get("node_id", "AYUSH_NODE_01"), packet.get("voltage_a", 230.0),
+        packet.get("node_id", "NODE_01"), packet.get("voltage_a", 230.0),
         packet.get("voltage_b", 230.0), packet.get("voltage_c", 230.0),
         packet.get("current_a", 10.0), packet.get("current_b", 10.0), packet.get("current_c", 10.0),
         packet.get("active_power", 6.5), packet.get("power_factor", 0.95),
