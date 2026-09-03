@@ -1,4 +1,4 @@
-"""Generate fake three-phase meter readings for local testing.
+"""Generating fake three-phase meter readings for local testing.
 
 This file stands in for a future ESP32/MQTT source. It only writes demo data
 to the local SQLite database; no hardware connection is required.
@@ -14,7 +14,7 @@ from datetime import datetime
 import database
 
 
-def sample(step: int, node: str = "AYUSH_NODE_01") -> dict:
+def sample(step: int, node: str = "NODE_01") -> dict:
     angle = (step % 96) / 96 * 2 * math.pi
     load = 1.0 + 0.09 * math.sin(angle) + random.uniform(-0.015, 0.015)
     phase_shift = random.uniform(-0.008, 0.008)
