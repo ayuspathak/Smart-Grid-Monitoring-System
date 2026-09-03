@@ -1,4 +1,4 @@
-"""Compatibility layer for older local imports."""
+"""Backward-compatible alias for the new feeder study module."""
 
 from feeder_model import GridStudy, run
 
