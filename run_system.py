@@ -1,4 +1,4 @@
-"""Launch the Ayush Smart Grid dashboard."""
+"""Launch the Smart Grid dashboard."""
 
 import subprocess
 import sys
@@ -8,7 +8,7 @@ import database
 
 def main() -> None:
     database.initialize()
-    print("Ayush Smart Grid Monitoring System")
+    print("Smart Grid Monitoring System")
     print("Starting Streamlit dashboard...")
     subprocess.run([sys.executable, "-m", "streamlit", "run", "app.py"], check=False)
 
