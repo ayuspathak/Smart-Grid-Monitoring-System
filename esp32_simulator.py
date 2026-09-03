@@ -1,46 +1,61 @@
-"""Generate sample three-phase telemetry for local testing."""
+"""Generate fake three-phase meter readings for local testing.
 
-from datetime import datetime
+This file stands in for a future ESP32/MQTT source. It only writes demo data
+to the local SQLite database; no hardware connection is required.
+"""
+
+from __future__ import annotations
+
 import math
 import random
 import time
-import database as db
+from datetime import datetime
+
+import database
 
 
-def make_packet(step=0):
-    angle = (step % 120) / 120 * 2 * math.pi
-    load = 1.0 + 0.10 * math.sin(angle) + random.uniform(-0.025, 0.025)
-    imbalance = random.uniform(-1.2, 1.2)
-    voltage_a = 230.0 * load
-    voltage_b = 230.0 * load * (1 + imbalance / 100)
-    voltage_c = 230.0 * load * (1 - imbalance / 120)
-    current_a = 10.5 * load
-    current_b = 10.1 * load * (1 + imbalance / 150)
-    current_c = 10.3 * load
-    pf = max(0.82, min(0.99, 0.94 + random.uniform(-0.015, 0.015)))
-    power = (voltage_a * current_a + voltage_b * current_b + voltage_c * current_c) * pf / 1000
+def sample(step: int, node: str = "AYUSH_NODE_01") -> dict:
+    angle = (step % 96) / 96 * 2 * math.pi
+    load = 1.0 + 0.09 * math.sin(angle) + random.uniform(-0.015, 0.015)
+    phase_shift = random.uniform(-0.008, 0.008)
+
+    va = 230.0 * load
+    vb = 230.0 * load * (1.0 + phase_shift)
+    vc = 230.0 * load * (1.0 - phase_shift * 0.8)
+
+    ia = 10.0 * load + random.uniform(-0.25, 0.25)
+    ib = 9.8 * load + random.uniform(-0.25, 0.25)
+    ic = 9.9 * load + random.uniform(-0.25, 0.25)
+    pf = max(0.86, min(0.99, 0.95 + random.uniform(-0.012, 0.012)))
+    power_kw = (va * ia + vb * ib + vc * ic) * pf / 1000.0
+
     return {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "node_id": "AYUSH_NODE_01",
-        "voltage_a": round(voltage_a, 2), "voltage_b": round(voltage_b, 2), "voltage_c": round(voltage_c, 2),
-        "current_a": round(current_a, 2), "current_b": round(current_b, 2), "current_c": round(current_c, 2),
-        "active_power": round(power, 3), "power_factor": round(pf, 3),
-        "frequency": round(50.0 + random.uniform(-0.04, 0.04), 3),
+        "node_id": node,
+        "voltage_a": round(va, 2),
+        "voltage_b": round(vb, 2),
+        "voltage_c": round(vc, 2),
+        "current_a": round(ia, 2),
+        "current_b": round(ib, 2),
+        "current_c": round(ic, 2),
+        "active_power": round(power_kw, 3),
+        "power_factor": round(pf, 3),
+        "frequency": round(50.0 + random.uniform(-0.03, 0.03), 3),
         "status": "NORMAL",
     }
 
 
-def run_simulator(interval_sec=2):
+def run(interval_seconds: float = 2.0) -> None:
     step = 0
+    database.initialize()
     while True:
-        db.log_telemetry(make_packet(step))
+        database.log_telemetry(sample(step))
         step += 1
-        time.sleep(interval_sec)
+        time.sleep(interval_seconds)
 
 
 if __name__ == "__main__":
-    db.init_db()
-    for step in range(5):
-        db.log_telemetry(make_packet(step))
-        time.sleep(0.2)
-    print("Added sample telemetry records.")
+    database.initialize()
+    for i in range(10):
+        database.log_telemetry(sample(i))
+    print("Added 10 sample telemetry readings.")
