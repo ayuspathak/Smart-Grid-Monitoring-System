@@ -1,7 +1,7 @@
-"""Backward-compatible alias for the new feeder study module."""
+"""Compatibility alias for feeder_model.py."""
 
-from feeder_model import GridStudy, run
+from feeder_model import GridStudy
 
 GridSimulator = GridStudy
 
-__all__ = ["GridStudy", "GridSimulator", "run"]
+__all__ = ["GridStudy", "GridSimulator"]
