@@ -1,53 +1,64 @@
 # Smart Grid Monitoring System
 
-A practical B.Tech project for monitoring simulated three-phase electrical data and studying how the same measurements can be used for power-flow checks, fault analysis, and simple predictive analytics.
+A B.Tech Electrical Engineering project for looking at a small simulated distribution network from three angles: **measurement**, **electrical behaviour**, and **data analytics**.
 
-This repository is a reworked student implementation based on the public smart-grid monitoring project by `yashdeep043`. The dashboard layout, wording, project structure, and parts of the analysis workflow are being developed as a separate version.
+I built the current version around a simple workflow that is easy to run and explain:
 
-## What is included
+1. generate sample three-phase telemetry
+2. store the readings locally
+3. inspect feeder voltage/loading under different operating conditions
+4. run a simple fault what-if calculation
+5. flag unusual measurements with machine learning
+6. make a short load forecast from the stored history
 
-- Three-phase voltage, current, power-factor, and frequency monitoring
-- Local SQLite telemetry/history storage
-- Distribution-network power-flow simulation with Pandapower when available
-- A lightweight fallback model for exploring the dashboard without Pandapower
-- Fault / short-circuit what-if analysis
-- Isolation Forest anomaly detection
-- Random Forest based load forecasting
-- Streamlit dashboard
-- Optional ESP32/MQTT telemetry path and local simulator
+## Project structure
 
-## Main files
+```text
+Smart-Grid-Monitoring-System/
+├── app.py                 # Streamlit dashboard
+├── database.py            # SQLite storage and sample data
+├── feeder_model.py        # Feeder calculations and plots
+├── fault_study.py         # Simplified fault study
+├── analytics_engine.py    # anomaly detection + forecasting
+├── telemetry_simulator.py # local three-phase data generator
+├── run_system.py          # launcher
+├── requirements.txt
+└── PROJECT_NOTES.md
+```
 
-| File | Purpose |
-| --- | --- |
-| `app.py` | Streamlit monitoring dashboard |
-| `grid_simulation.py` | Distribution-grid model and power-flow calculations |
-| `fault_analysis.py` | Fault and protection calculations |
-| `ai_analytics.py` | Anomaly detection and load forecasting |
-| `database.py` | SQLite storage and telemetry history |
-| `esp32_simulator.py` | Generates sample sensor telemetry |
-| `run_system.py` | Application launcher |
-| `requirements.txt` | Python dependencies |
-
-## Run locally
+## Run it
 
 ```bash
 pip install -r requirements.txt
 python run_system.py
 ```
 
-Then open the Streamlit address printed in the terminal.
+A browser window can then be opened at the Streamlit address printed in the terminal.
 
-## Project notes
+You can also run the dashboard directly:
 
-The electrical values used by the simulator are demonstration values. They are intended for software testing and learning, not as measurements from a live utility network or as field engineering specifications.
+```bash
+streamlit run app.py
+```
 
-## Attribution
+## What is simulated
 
-This is a modified derivative project inspired by the public repository `yashdeep043/smart-grid-monitoring`. The original project is acknowledged as the starting point for the idea and some components; this repository is being developed as a separate student implementation.
+The telemetry and network values are generated for learning and software testing. They are not measurements from a real utility network, and the simplified fault study is not intended for relay settings or field design.
+
+## Main ideas demonstrated
+
+- Three-phase electrical telemetry handling
+- Voltage imbalance calculation
+- Feeder operating-point study
+- Simple voltage-drop and loading analysis
+- Fault current estimation using a simplified impedance model
+- Isolation Forest anomaly detection
+- Short-horizon load forecasting
+- SQLite-based local history
+- Interactive Streamlit visualisation
 
 ## Author
 
-Ayush Pathak  
+**Ayush Pathak**  
 B.Tech Electrical Engineering, 4th Year  
 BIET Jhansi
