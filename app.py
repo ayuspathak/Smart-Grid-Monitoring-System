@@ -7,9 +7,9 @@ import plotly.graph_objects as go
 import streamlit as st
 
 import analytics_engine as analytics
+import database as storage
 import feeder_model
 import fault_study
-import storage
 
 st.set_page_config(page_title="Ayush Smart Grid", page_icon="⚡", layout="wide")
 st.title("⚡ Smart Grid Monitoring System")
@@ -20,7 +20,7 @@ storage.initialize()
 with st.sidebar:
     st.header("Controls")
     view = st.radio("Section", ["Dashboard", "Feeder Study", "Fault Study", "Analytics"])
-    node = st.selectbox("Node", ["AYUSH_NODE_01", "FEEDER_A", "FEEDER_B"])
+    node = st.selectbox("Telemetry node", ["AYUSH_NODE_01", "FEEDER_A", "FEEDER_B"])
     if st.button("Generate fresh sample"):
         storage.add_sample_batch(12)
         st.rerun()
@@ -33,7 +33,7 @@ if view == "Dashboard":
     else:
         latest = data.iloc[0]
         vals = [float(latest[c]) for c in ("voltage_a", "voltage_b", "voltage_c")]
-        avg_v = sum(vals) / 3
+        avg_v = sum(vals) / 3.0
         deviation = max(abs(v - avg_v) for v in vals) / avg_v * 100
         c1,c2,c3,c4 = st.columns(4)
         c1.metric("Phase A", f"{vals[0]:.1f} V")
@@ -103,7 +103,7 @@ else:
         forecast = analytics.forecast(data, hours=12)
         if not forecast.empty:
             fig = go.Figure(go.Scatter(x=forecast["time"], y=forecast["forecast_kw"], mode="lines+markers", name="Forecast"))
-            fig.update_layout(title="Next 12-hour load estimate", height=350)
+            fig.update_layout(title="Next 12-hour load estimate", height=350, margin=dict(l=20,r=20,t=55,b=20))
             st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
