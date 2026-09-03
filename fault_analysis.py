@@ -1,49 +1,40 @@
-"""Simple educational fault-study calculations."""
+"""Simplified fault-study calculations for academic use."""
+
+from __future__ import annotations
 
 import math
 
+FEEDER_KV = {"Industrial": 11.0, "Commercial": 10.8, "Residential": 10.6}
+FAULT_FACTOR = {"3-phase": 1.00, "line-line": 0.87, "single-line-ground": 0.62}
+BASE_Z = {"3-phase": 0.16, "line-line": 0.21, "single-line-ground": 0.29}
 
-def simulate_fault(fault_type="3PH", location="Commercial Feeder", fault_resistance=0.05):
-    """Return a repeatable what-if fault estimate for the demo feeder.
 
-    The calculation is intentionally simplified. It is for software testing,
-    not protection-setting or field design.
-    """
-    base_kv = {"Industrial Feeder": 11.0, "Commercial Feeder": 10.9, "Residential Feeder": 10.8}.get(location, 10.9)
-    z_grid = 0.18 if fault_type == "3PH" else 0.24 if fault_type == "LL" else 0.31
-    phase_kv = base_kv / math.sqrt(3)
-    current_ka = (phase_kv / 1000) / max(z_grid + fault_resistance, 0.001)
-    current_ka *= {"3PH": 1.25, "LL": 0.92, "SLG": 0.68}.get(fault_type, 1.0)
-    current_ka = round(current_ka, 3)
+def calculate(fault_type: str, feeder: str, resistance: float) -> dict:
+    kv = FEEDER_KV[feeder]
+    z = BASE_Z[fault_type] + max(float(resistance), 0.0)
+    phase_v = kv * 1000 / math.sqrt(3)
+    current_ka = phase_v / z / 1000 * FAULT_FACTOR[fault_type]
 
-    pickup_ka = 0.45
-    ratio = max(current_ka / pickup_ka, 1.01)
-    trip_ms = max(35.0, min(180.0, 95.0 / (ratio ** 1.8)))
-    trip_ms = round(trip_ms, 1)
+    pickup = 0.40
+    ratio = max(current_ka / pickup, 1.0)
+    clearing_ms = max(40.0, min(160.0, 110.0 / (ratio ** 1.55)))
+    severity = "HIGH" if current_ka >= 3.0 else "MEDIUM" if current_ka >= 1.5 else "LOW"
 
-    if current_ka >= 2.5:
-        severity = "HIGH"
-    elif current_ka >= 1.2:
-        severity = "MEDIUM"
-    else:
-        severity = "LOW"
-
-    # A small voltage-sag profile along the feeder.
-    drop = min(0.55, 0.08 + current_ka * 0.045)
+    base_drop = min(0.42, 0.06 + 0.032 * current_ka)
+    nodes = ["Substation", f"{feeder} feeder", "End node"]
     profile = []
-    for idx, node in enumerate(["Substation", "Industrial Feeder", "Commercial Feeder", "Residential Feeder"]):
-        sag = min(0.75, drop * (idx + 1) / 4)
-        profile.append({"node": node, "voltage_pu": round(1.0 - sag, 3)})
+    for i, node in enumerate(nodes, start=1):
+        profile.append({"node": node, "voltage_pu": round(max(0.70, 1 - base_drop * i / 3), 3)})
 
     return {
         "fault_type": fault_type,
-        "location": location,
-        "fault_current_ka": current_ka,
-        "trip_time_ms": trip_ms,
+        "feeder": feeder,
+        "fault_current_ka": round(current_ka, 3),
+        "clearing_ms": round(clearing_ms, 1),
         "severity": severity,
         "voltage_profile": profile,
     }
 
 
 if __name__ == "__main__":
-    print(simulate_fault())
+    print(calculate("3-phase", "Commercial", 0.08))
