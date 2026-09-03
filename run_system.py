@@ -1,15 +1,15 @@
-"""Start the dashboard and prepare its local data store."""
+"""Launch the Ayush Smart Grid dashboard."""
 
 import subprocess
 import sys
 
-import database as db
+import database
 
 
-def main():
-    db.init_db()
-    print("Smart Grid Monitoring System")
-    print("Launching Streamlit dashboard...")
+def main() -> None:
+    database.initialize()
+    print("Ayush Smart Grid Monitoring System")
+    print("Starting Streamlit dashboard...")
     subprocess.run([sys.executable, "-m", "streamlit", "run", "app.py"], check=False)
 
 
