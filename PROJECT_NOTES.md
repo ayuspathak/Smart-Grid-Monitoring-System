@@ -1,16 +1,21 @@
-# Project notes
+# Project Notes
 
-This version was simplified around the parts I would actually demonstrate in a college project:
+## Idea
 
-1. generate/use local three-phase telemetry
-2. inspect a small distribution network
-3. run a fault what-if calculation
-4. flag unusual sensor records
-5. look one day ahead with a basic regression model
-6. view everything from one Streamlit page
+The project is meant to be a compact smart-grid lab environment rather than a utility-grade monitoring platform. The data path is deliberately simple so that each stage can be tested on its own.
 
-The emphasis is on understanding the flow of data from measurement to analysis rather than trying to present the application as a utility-grade protection system.
+**Telemetry → storage → feeder study → fault study → analytics → dashboard**
 
-Original project referenced: `https://github.com/yashdeep043/smart-grid-monitoring`
+## Design choices
 
-Author of this version: Ayush Pathak, B.Tech Electrical Engineering, BIET Jhansi.
+- SQLite keeps the demo self-contained.
+- The telemetry generator uses small changes in load and phase values instead of perfectly constant readings.
+- The feeder model has separate operating controls for demand and rooftop PV.
+- Fault calculations are kept intentionally simplified and are labelled as such in the UI.
+- The ML layer uses anomaly detection plus a short load forecast; neither is presented as a protection or dispatch system.
+
+## Author
+
+Ayush Pathak  
+B.Tech Electrical Engineering, 4th Year  
+BIET Jhansi
