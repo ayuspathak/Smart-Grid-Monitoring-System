@@ -1,7 +1,4 @@
-"""Compatibility alias for feeder_model.py."""
-
+"""Compatibility import for the rebuilt feeder model."""
 from feeder_model import GridStudy
-
 GridSimulator = GridStudy
-
 __all__ = ["GridStudy", "GridSimulator"]
